@@ -92,11 +92,19 @@ fn client_lecture1(stream: &mut TcpStream) {
 fn client_lecture(stream: &mut TcpStream) {
     let mut data = [0u8; BUFFSIZE_CLIENT];
     while match stream.read(&mut data) {
-        Ok(0) => false,
+        Ok(0) => {
+            println!("rien lu");
+            false
+        }
+        Ok(BUFFSIZE_CLIENT) => {
+            println!("un paquet");
+            println!("server > {}", from_utf8(&data).unwrap());
+            true
+        }
         Ok(size) => {
             println!("lu stream {}", size);
             println!("server > {}", from_utf8(&data).unwrap());
-            true
+            false
         }
         Err(e) => {
             println!("cnx err : {}", e);
