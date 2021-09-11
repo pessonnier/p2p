@@ -26,14 +26,21 @@ fn traite_client(mut stream: TcpStream) {
     //mut stream: TcpStream
     let client_tcp = stream.peer_addr().unwrap().to_string();
     let mut data = [0 as u8; BUFFSIZE_SERVER]; // using 50 byte buffer
-    println!("flush {}", client_tcp);
-    stream.flush().unwrap();
+                                               //println!("flush {}", client_tcp);
+                                               //stream.flush().unwrap();
     println!("<...");
     while match stream.read(&mut data) {
         Ok(size) => {
-            data.reverse(); // let t = s.chars().rev().collect::<String>();
-            println!("{} > {}", client_tcp, from_utf8(&data).unwrap());
-            stream.write(&data[BUFFSIZE_SERVER - size - 1..]).unwrap();
+            // traitement
+            //data.reverse(); // let t = s.chars().rev().collect::<String>();
+            let chaine = from_utf8(&data).unwrap();
+            let chaine_rev: String = chaine.chars().rev().collect();
+            println!("{} len {} > {}", client_tcp, size, chaine);
+            //stream.write(&data[BUFFSIZE_SERVER - size - 1..]).unwrap();
+            let data = chaine_rev.as_bytes();
+            // fin traitement
+            println!("envoi {} > {}", data.len(), from_utf8(&data).unwrap());
+            stream.write(data).unwrap();
             stream.flush().unwrap();
             println!("<...");
             true
@@ -97,13 +104,11 @@ fn client_lecture(stream: &mut TcpStream) {
             false
         }
         Ok(BUFFSIZE_CLIENT) => {
-            println!("un paquet");
-            println!("server > {}", from_utf8(&data).unwrap());
+            println!("un paquet server > {}", from_utf8(&data).unwrap());
             true
         }
         Ok(size) => {
-            println!("lu stream {}", size);
-            println!("server > {}", from_utf8(&data).unwrap());
+            println!("lu stream {} server > {}", size, from_utf8(&data).unwrap());
             false
         }
         Err(e) => {
