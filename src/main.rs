@@ -25,9 +25,9 @@ fn server0() {
 fn traite_client(mut stream: TcpStream) {
     //mut stream: TcpStream
     let client_tcp = stream.peer_addr().unwrap().to_string();
-    let mut data = [0 as u8; BUFFSIZE_SERVER]; // using 50 byte buffer
-                                               //println!("flush {}", client_tcp);
-                                               //stream.flush().unwrap();
+    let mut data = [0 as u8; BUFFSIZE_SERVER];
+    //println!("flush {}", client_tcp);
+    //stream.flush().unwrap();
     println!("<...");
     while match stream.read(&mut data) {
         Ok(size) => {
@@ -37,10 +37,16 @@ fn traite_client(mut stream: TcpStream) {
             let chaine_rev: String = chaine.chars().rev().collect();
             println!("{} len {} > {}", client_tcp, size, chaine);
             //stream.write(&data[BUFFSIZE_SERVER - size - 1..]).unwrap();
-            let data = chaine_rev.as_bytes();
+            let data_to_send = chaine_rev.as_bytes();
+            println!("arr {:?} chaine {:?}", data_to_send, chaine_rev);
             // fin traitement
-            println!("envoi {} > {}", data.len(), from_utf8(&data).unwrap());
-            stream.write(data).unwrap();
+            let data_utiles = &data_to_send[BUFFSIZE_SERVER - size..];
+            println!(
+                "envoi {} > {}",
+                data_to_send.len(),
+                from_utf8(&data_to_send).unwrap()
+            );
+            stream.write(data_utiles).unwrap();
             stream.flush().unwrap();
             println!("<...");
             true
@@ -127,15 +133,27 @@ fn client() {
             loop {
                 let mut wbuf = [0u8; BUFFSIZE_CLIENT];
                 print!("> ");
-                stdout().flush().unwrap();
+                stdout().flush().unwrap(); // parcequ pas println
                 let lu_stdin = stdin().read(&mut wbuf).unwrap();
                 //println!();
                 println!("lu stdin {}", lu_stdin);
                 // let car = from_utf8(&wbuf).unwrap();
-                stream.write_all(&wbuf).unwrap();
-                stream.flush().unwrap();
-                println!("<...");
-                client_lecture(&mut stream);
+                match stream.write(&wbuf[..lu_stdin - 1]) {
+                    // eventuellement write_all plus tard
+                    Ok(0) => {
+                        println!("ecriture buffer vide ?");
+                    }
+                    Ok(size) => {
+                        println!("ecriture {}", size);
+                        println!("<...");
+                        client_lecture(&mut stream);
+                    }
+                    Err(e) => {
+                        println!("cnx terminee : {}", e);
+                        stream.shutdown(Shutdown::Both).unwrap();
+                    }
+                }
+                // stream.flush().unwrap();
             }
         }
         Err(e) => {
