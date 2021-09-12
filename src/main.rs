@@ -59,9 +59,10 @@ fn traite_client(mut stream: TcpStream) {
     } {}
 }
 
+// TODO : a l'arret de node red, bloucle en envoyant des buffers vides
 fn server() {
     println!("Server");
-    let listener = TcpListener::bind("127.0.0.1:8888").unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8888").unwrap();
     println!("...");
     for stream in listener.incoming() {
         match stream {
