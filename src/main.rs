@@ -7,9 +7,10 @@ use std::thread;
 const BUFFSIZE_CLIENT: usize = 6;
 const BUFFSIZE_SERVER: usize = 50;
 
+// un serveur qui teste si une connexion est possible
 fn server0() {
     println!("Server");
-    let listener = TcpListener::bind("127.0.0.1:8888").unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8888").unwrap();
     println!("...");
     match listener.accept() {
         Ok((client, adr)) => {
@@ -21,8 +22,8 @@ fn server0() {
         }
     }
 }
-
-fn traite_client(mut stream: TcpStream) {
+// traitement cote serveur qui retourne une chaine dans l ordre inverse
+fn _traite_client(mut stream: TcpStream) {
     //mut stream: TcpStream
     let client_tcp = stream.peer_addr().unwrap().to_string();
     let mut data = [0 as u8; BUFFSIZE_SERVER];
@@ -58,20 +59,102 @@ fn traite_client(mut stream: TcpStream) {
         }
     } {}
 }
+fn traitement_serveur(
+    data: &[u8; BUFFSIZE_SERVER],
+    reponse: &mut [u8; BUFFSIZE_SERVER],
+    player: &std::sync::Arc<std::sync::Mutex<Player>>,
+) -> usize {
+    {
+        let mut player_partagee = player.lock().unwrap();
+        player_partagee.x += 1;
+    }
+    reponse[0] = data[0];
+    let zero = b"0"; //.as_bytes();
+    reponse[1] = zero[0];
+    2
+}
+struct MyString(String);
+
+impl MyString {
+    fn new(s: &str) -> MyString {
+        MyString(s.to_string())
+    }
+}
+
+struct Player {
+    nom: String,
+    x: i32,
+    y: i32,
+}
+
+impl Player {
+    fn new(s: &str) -> Player {
+        Player {
+            nom: s.to_string(),
+            x: 0,
+            y: 0,
+        }
+    }
+    fn deplace0(&mut self, x: i32, y: i32) {
+        self.x = x;
+        self.y = y;
+    }
+    fn deplace(p: &mut Player, x: i32, y: i32) {
+        p.x = x;
+        p.y = y;
+    }
+}
+
+// struct Player<'a> {
+//     stream: &'a std::net::TcpStream,
+// }
+//
+// struct Player2 {
+//     stream: std::net::TcpStream,
+// }
+
+use std::sync::{Arc, Mutex};
 
 // TODO : a l'arret de node red, bloucle en envoyant des buffers vides
 fn server() {
     println!("Server");
     let listener = TcpListener::bind("0.0.0.0:8888").unwrap();
     println!("...");
+    let mut _players: [Option<Player>; 8] = [None, None, None, None, None, None, None, None];
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => {
+            Ok(mut stream) => {
                 println!("alu {}:", stream.peer_addr().unwrap());
-                //println!("client {}", client.local_addr().unwrap());
+                //players[0] = Some(Player { stream: &stream });
+                let _client_tcp = stream.peer_addr().unwrap().to_string();
+                let p = Player::new("bob");
+                let p_ark = Arc::new(Mutex::new(p));
+                let player_clone = Arc::clone(&p_ark);
                 thread::spawn(move || {
-                    // connection succeeded
-                    traite_client(stream)
+                    //let mut data_lu = [0 as u8; BUFFSIZE_SERVER];
+                    let mut data = [0 as u8; BUFFSIZE_SERVER];
+                    let mut reponse = [0 as u8; BUFFSIZE_SERVER];
+                    println!("<...");
+                    while match stream.read(&mut data) {
+                        Ok(0) => {
+                            println!("rien a lire");
+                            false
+                        }
+                        Ok(BUFFSIZE_SERVER) => true, // on ne traite pas les trop gros paquets
+                        Ok(_size) => {
+                            let size_reponse =
+                                traitement_serveur(&data, &mut reponse, &player_clone);
+                            stream.write(&reponse[..size_reponse]).unwrap();
+                            //stream.flush().unwrap();
+                            println!("<...");
+                            true
+                        }
+                        Err(_) => {
+                            println!("fin de cnx avec {}", stream.peer_addr().unwrap());
+                            stream.shutdown(Shutdown::Both).unwrap();
+                            false
+                        }
+                    } {}
                 });
             }
             Err(e) => {
@@ -81,7 +164,7 @@ fn server() {
     }
 }
 
-fn client_lecture0(stream: &mut TcpStream) {
+fn _client_lecture0(stream: &mut TcpStream) {
     let mut rbuf = [0u8; BUFFSIZE_CLIENT]; //Vec<u8> = Vec::new();
     loop {
         let lu_stream = stream.read(&mut rbuf).unwrap();
@@ -93,7 +176,7 @@ fn client_lecture0(stream: &mut TcpStream) {
     }
 }
 
-fn client_lecture1(stream: &mut TcpStream) {
+fn _client_lecture1(stream: &mut TcpStream) {
     let mut rbuf: Vec<u8> = Vec::new();
     let lu_stream = stream.read_to_end(&mut rbuf).unwrap();
     if lu_stream == 0 {
