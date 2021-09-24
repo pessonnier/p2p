@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::io::{stdin, stdout, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::str::from_utf8;
@@ -59,6 +60,9 @@ fn _traite_client(mut stream: TcpStream) {
         }
     } {}
 }
+
+let re = Regex::new(r"x=(\d+)");
+
 fn traitement_serveur(
     data: &[u8; BUFFSIZE_SERVER],
     reponse: &mut [u8; BUFFSIZE_SERVER],
